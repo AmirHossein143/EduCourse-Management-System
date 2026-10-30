@@ -1,2 +1,144 @@
-# EduCourse-Management-System
-A Django-based educational course management system for instructors to create courses, manage sessions, and evaluate students, while allowing learners to explore and enroll in courses
+# سامانه مدیریت دوره‌های آموزشی — فاز اول
+
+پروژه درس برنامه‌نویسی وب، موضوع «مدیریت دوره‌های آموزشی» (بند ۳.۸ فایل پروژه).
+
+در فاز اول اپ‌ها، فرایندها و مدل‌ها تعریف شده‌اند. صفحه‌های سایت، ثبت‌نام و ورود کاربران، جستجو و فرم‌های دانشجو و مدرس مربوط به فاز دوم هستند. فعلاً داده‌ها را می‌توان از پنل آماده ادمین وارد کرد.
+
+## فایل‌های مهم
+
+- [گزارش فاز اول و نمودار فرایندها](docs/phase1.md)
+- [مدل پروفایل](accounts/models.py)
+- [مدل موضوع، دوره و جلسه](courses/models.py)
+- [مدل ثبت‌نام و نمره](enrollments/models.py)
+- [بکاپ PostgreSQL فاز اول](backups/phase1.sql)
+
+## ابزارهای لازم
+
+- Python 3.10 یا جدیدتر (اینجا با Python 3.12 اجرا شده است).
+- Django 5.2.18؛ نسخه 5.2 برای هماهنگی با اسلاید مدل‌ها و مثال‌های کلاس انتخاب شده است.
+- PostgreSQL 16؛ در این پروژه از SQLite استفاده نمی‌شود.
+- Docker و Docker Compose فقط برای روش ساده اجرای دیتابیس؛ اگر PostgreSQL نصب دارید، Docker لازم نیست.
+
+## راه‌اندازی
+
+دستورها را در پوشه‌ای اجرا کنید که `manage.py` در آن است.
+
+```bash
+python -m venv .venv
+```
+
+فعال کردن محیط در لینوکس و مک:
+
+```bash
+source .venv/bin/activate
+```
+
+در PowerShell ویندوز:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+سپس:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+از فایل `.env.example` یک کپی با نام `.env` بسازید. در لینوکس و مک:
+
+```bash
+cp .env.example .env
+```
+
+در PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+داخل `.env`، مقدار `DB_PASSWORD` را با رمز دیتابیس محلی خود و `DJANGO_SECRET_KEY` را با یک رشته تصادفی جایگزین کنید. برای ساخت رشته تصادفی:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+این فایل محلی است و نباید وارد گیت شود. تنظیمات فعلی برای توسعه هستند.
+
+### روش اول: دیتابیس با Docker
+
+```bash
+docker compose up -d --wait db
+```
+
+این دستور کاربر و دیتابیس را با مقادیر `.env` می‌سازد و منتظر آماده شدن PostgreSQL می‌ماند. داده‌ها در volume نگهداری می‌شوند. بعد از اولین اجرا، تغییر رمز در `.env` رمز کاربر داخل دیتابیس را تغییر نمی‌دهد؛ برای تغییر رمز باید از خود PostgreSQL استفاده کنید.
+
+### روش دوم: PostgreSQL نصب‌شده
+
+در pgAdmin یا ابزار مدیریت PostgreSQL، یک کاربر و یک دیتابیس متعلق به همان کاربر بسازید و نام، رمز، میزبان و پورت را در `.env` وارد کنید. مثلاً در `psql` با حساب مدیر:
+
+```sql
+CREATE USER educourse;
+\password educourse
+CREATE DATABASE educourse OWNER educourse;
+```
+
+دستور `\password` رمز را تعاملی می‌گیرد. برای اجرای تست‌های دیتابیسی در فازهای بعد ممکن است لازم باشد به کاربر اجازه ساخت دیتابیس بدهید؛ برای اجرای عادی پروژه لازم نیست.
+
+### ساخت جدول‌ها و اجرای پروژه
+
+```bash
+python manage.py migrate
+python manage.py check
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+در مرورگر مسیر `/admin/` روی سرور توسعه را باز کنید. مسیر اصلی سایت هنوز صفحه‌ای ندارد، چون ساخت صفحه‌ها در فاز دوم است.
+
+ترتیب ورود دستی اطلاعات در ادمین:
+
+1. در بخش کاربران، یک کاربر مدرس و یک کاربر دانشجو بسازید. رمزها را از فرم ساخت کاربر تعیین کنید.
+2. در بخش پروفایل‌ها، برای هر کاربر پروفایل بسازید و نقش مناسب را انتخاب کنید. پروفایل در این فاز خودکار ساخته نمی‌شود.
+3. موضوع و سپس دوره را با یک مدرس بسازید.
+4. جلسه‌های دوره را وارد کنید.
+5. برای دانشجو ثبت‌نام بسازید. نمره و ارزیابی می‌توانند فعلاً خالی بمانند.
+
+نقش مدرس یا دانشجو با مجوز ادمین فرق دارد. برای کار با پنل مدیریت از حساب superuser استفاده کنید. حساب‌های عادی هنوز صفحه ورود و داشبورد ندارند.
+
+## بررسی مدل‌ها
+
+```bash
+python manage.py check --database default
+python manage.py makemigrations --check --dry-run
+python manage.py showmigrations
+```
+
+اعتبارسنجی مقدارها در ادمین انجام می‌شود. اگر در shell داده می‌سازید، قبل از `save()`، متد `full_clean()` را صدا بزنید؛ خود `save()` آن را اجرا نمی‌کند. یکتایی ثبت‌نام و شماره جلسه علاوه بر اعتبارسنجی، در دیتابیس هم اعمال می‌شود.
+
+## بکاپ دیتابیس
+
+فایل `backups/phase1.sql` بکاپ دیتابیس همین فاز است؛ جدول‌های پروژه و اطلاعات داخلی migrationها و مجوزهای Django را دارد، ولی کاربر، رمز یا داده شخصی ندارد. برای ساخت یک دیتابیس تازه، روش پیشنهادی `migrate` است.
+
+برای ساخت بکاپ کامل از دیتابیس خودتان با Docker:
+
+```bash
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backups/educourse.dump
+```
+
+این بکاپ ممکن است شامل حساب‌ها و داده‌های شخصی باشد، پس به صورت پیش‌فرض از گیت کنار گذاشته شده است. برای تحویل فاز یک، بکاپ بدون داده کاربری در مخزن قرار دارد.
+
+بازیابی بکاپ فاز اول در یک دیتابیس **خالی** با Docker:
+
+```bash
+docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backups/phase1.sql
+python manage.py migrate
+```
+
+روی دیتابیس دارای جدول این دستور بازیابی را اجرا نکنید. در PowerShell، اگر ورودی `<` پشتیبانی نشد، فایل SQL را از ابزار Query Tool در pgAdmin باز و روی دیتابیس خالی اجرا کنید.
+
+توقف دیتابیس بدون پاک شدن داده‌ها:
+
+```bash
+docker compose stop db
+```
