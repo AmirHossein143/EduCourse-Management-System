@@ -6,7 +6,7 @@
 
 ## فایل‌های مهم
 
-- [گزارش فاز اول و نمودار فرایندها](docs/phase1.md)
+- [گزارش فاز اول و نمودار فرایندها](docs/phase1.md)؛ نمودارهای Mermaid را در GitHub یا Markdown Preview نسخه‌های جدید VS Code ببینید. در ویرایشگر متنی فقط کد نمودارها دیده می‌شود.
 - [مدل پروفایل](accounts/models.py)
 - [مدل موضوع، دوره و جلسه](courses/models.py)
 - [مدل ثبت‌نام و نمره](enrollments/models.py)
@@ -14,7 +14,7 @@
 
 ## ابزارهای لازم
 
-- Python 3.10 یا جدیدتر (اینجا با Python 3.12 اجرا شده است).
+- Python 3.10 تا 3.14 (اینجا با Python 3.12 اجرا شده است؛ Python 3.14 نیز با نسخه‌های فعلی وابستگی‌ها سازگار است).
 - Django 5.2.18؛ نسخه 5.2 برای هماهنگی با اسلاید مدل‌ها و مثال‌های کلاس انتخاب شده است.
 - PostgreSQL 16؛ در این پروژه از SQLite استفاده نمی‌شود.
 - Docker و Docker Compose فقط برای روش ساده اجرای دیتابیس؛ اگر PostgreSQL نصب دارید، Docker لازم نیست.
@@ -64,6 +64,8 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
 این فایل محلی است و نباید وارد گیت شود. تنظیمات فعلی برای توسعه هستند.
+
+برای اجرای محلی با `runserver`، مقدار `DJANGO_DEBUG=True` را نگه دارید تا فایل‌های static، از جمله CSS و JavaScript ادمین، سرو شوند. در استقرار واقعی باید `DEBUG=False` باشد و سرو فایل‌های static جداگانه تنظیم شود.
 
 ### روش اول: دیتابیس با Docker
 
@@ -120,22 +122,35 @@ python manage.py showmigrations
 
 فایل `backups/phase1.sql` بکاپ دیتابیس همین فاز است؛ جدول‌های پروژه و اطلاعات داخلی migrationها و مجوزهای Django را دارد، ولی کاربر، رمز یا داده شخصی ندارد. برای ساخت یک دیتابیس تازه، روش پیشنهادی `migrate` است.
 
-برای ساخت بکاپ کامل از دیتابیس خودتان با Docker:
+برای ساخت بکاپ کامل از دیتابیس خودتان با Docker، فایل را داخل کانتینر بسازید و سپس کپی کنید. این روش در PowerShell ویندوز و لینوکس و مک قابل استفاده است:
 
 ```bash
-docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backups/educourse.dump
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/educourse.dump'
+docker compose cp db:/tmp/educourse.dump backups/educourse.dump
 ```
+
+در Windows PowerShell 5.1 و PowerShell قدیمی‌تر از 7.4، هدایت خروجی باینری با `>` می‌تواند بکاپ `-Fc` را خراب کند. از نسخه 7.4 به بعد، خروجی برنامه‌های native به صورت بایت حفظ می‌شود؛ دستورهای بالا به این تفاوت نسخه‌ها وابسته نیستند.
 
 این بکاپ ممکن است شامل حساب‌ها و داده‌های شخصی باشد، پس به صورت پیش‌فرض از گیت کنار گذاشته شده است. برای تحویل فاز یک، بکاپ بدون داده کاربری در مخزن قرار دارد.
 
-بازیابی بکاپ فاز اول در یک دیتابیس **خالی** با Docker:
+بازیابی بکاپ فاز اول در یک دیتابیس **خالی** با Docker (پس از راه‌اندازی سرویس `db`):
 
 ```bash
-docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backups/phase1.sql
+docker compose cp backups/phase1.sql db:/tmp/phase1.sql
+docker compose exec -T db sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/phase1.sql'
 python manage.py migrate
 ```
 
-روی دیتابیس دارای جدول این دستور بازیابی را اجرا نکنید. در PowerShell، اگر ورودی `<` پشتیبانی نشد، فایل SQL را از ابزار Query Tool در pgAdmin باز و روی دیتابیس خالی اجرا کنید.
+این روش در PowerShell نیز کار می‌کند و به ورودی `<` نیاز ندارد. فایل `phase1.sql` شامل دستورهای مخصوص `psql` مانند `\restrict` و داده‌های `COPY ... FROM stdin` است؛ آن را با Query Tool در pgAdmin اجرا نکنید. برای PostgreSQL 16، از کلاینت به‌روز `psql` (حداقل 16.10) استفاده کنید تا `\restrict` را بشناسد.
+
+اگر PostgreSQL را محلی نصب کرده‌اید و `psql` در PATH است:
+
+```bash
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U educourse -d educourse -f backups/phase1.sql
+python manage.py migrate
+```
+
+نام کاربر و دیتابیس، میزبان و پورت را مطابق `.env` خود تغییر دهید؛ `psql` فایل `.env` پروژه را خودکار نمی‌خواند و در صورت نیاز رمز را تعاملی می‌پرسد. روی دیتابیس دارای جدول بازیابی را اجرا نکنید؛ برای این مسیر، قبل از بازیابی `migrate` نزنید و فقط پس از موفقیت بازیابی آن را اجرا کنید.
 
 توقف دیتابیس بدون پاک شدن داده‌ها:
 
